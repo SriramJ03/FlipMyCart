@@ -1,0 +1,28 @@
+# Dependencies
+node_modules/
+
+# Environment files (never commit real secrets)
+.env
+.env.local
+backend/.env
+frontend/.env
+
+# Build output
+frontend/dist/
+frontend/build/
+
+# Uploaded files (keep the folder, ignore contents)
+backend/uploads/products/*
+!backend/uploads/products/.gitkeep
+
+# Logs
+npm-debug.log*
+*.log
+
+# OS / editor
+.DS_Store
+.vscode/
+.idea/
+
+# Final packaged deliverable (regenerate, don't version)
+FlipMyCart-Complete-Project.zip
