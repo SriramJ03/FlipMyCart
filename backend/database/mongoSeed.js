@@ -17,32 +17,203 @@ const Message = require('../models/mongodb/Message');
 const UserActivity = require('../models/mongodb/UserActivity');
 const Notification = require('../models/mongodb/Notification');
 
-const PLACEHOLDER = (seed) => `https://picsum.photos/seed/${seed}/600/600`;
 
 const productMedia = [
-  { productId: 1, images: [
-    { url: PLACEHOLDER('flipphone-x12-1'), altText: 'FlipPhone X12 front', isPrimary: true, sortOrder: 1 },
-    { url: PLACEHOLDER('flipphone-x12-2'), altText: 'FlipPhone X12 back', isPrimary: false, sortOrder: 2 },
-  ], videos: [{ url: 'https://example.com/videos/flipphone-x12.mp4', title: 'FlipPhone X12 overview', durationSeconds: 45 }] },
-  { productId: 2, images: [{ url: PLACEHOLDER('nova-1'), altText: 'Nova Smartphone', isPrimary: true, sortOrder: 1 }], videos: [] },
-  { productId: 3, images: [
-    { url: PLACEHOLDER('ultrabook-1'), altText: 'UltraBook Pro open', isPrimary: true, sortOrder: 1 },
-    { url: PLACEHOLDER('ultrabook-2'), altText: 'UltraBook Pro side', isPrimary: false, sortOrder: 2 },
-  ], videos: [] },
-  { productId: 4, images: [{ url: PLACEHOLDER('soundwave-1'), altText: 'SoundWave Headphones', isPrimary: true, sortOrder: 1 }], videos: [] },
-  { productId: 5, images: [{ url: PLACEHOLDER('smartwatch-1'), altText: 'SmartWatch Fit 2', isPrimary: true, sortOrder: 1 }], videos: [] },
-  { productId: 6, images: [{ url: PLACEHOLDER('shirt-1'), altText: "Men's Cotton Shirt", isPrimary: true, sortOrder: 1 }], videos: [] },
-  { productId: 7, images: [{ url: PLACEHOLDER('kurti-1'), altText: "Women's Kurti", isPrimary: true, sortOrder: 1 }], videos: [] },
-  { productId: 8, images: [{ url: PLACEHOLDER('shoes-1'), altText: 'Running Shoes', isPrimary: true, sortOrder: 1 }], videos: [] },
-  { productId: 9, images: [{ url: PLACEHOLDER('jacket-1'), altText: 'Denim Jacket', isPrimary: true, sortOrder: 1 }], videos: [] },
-  { productId: 10, images: [{ url: PLACEHOLDER('cookware-1'), altText: 'Cookware Set', isPrimary: true, sortOrder: 1 }], videos: [] },
-  { productId: 11, images: [{ url: PLACEHOLDER('kettle-1'), altText: 'Electric Kettle', isPrimary: true, sortOrder: 1 }], videos: [] },
-  { productId: 12, images: [{ url: PLACEHOLDER('lamp-1'), altText: 'LED Table Lamp', isPrimary: true, sortOrder: 1 }], videos: [] },
-  { productId: 13, images: [{ url: PLACEHOLDER('book-1'), altText: 'Data Structures Handbook cover', isPrimary: true, sortOrder: 1 }], videos: [] },
-  { productId: 14, images: [{ url: PLACEHOLDER('budgetphone-1'), altText: 'BudgetPhone Lite', isPrimary: true, sortOrder: 1 }], videos: [] },
-  { productId: 15, images: [{ url: PLACEHOLDER('mouse-1'), altText: 'Wireless Mouse Combo', isPrimary: true, sortOrder: 1 }], videos: [] },
-];
+  {
+    productId: 1,
+    images: [
+      {
+        url: 'https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?auto=format&fit=crop&w=600&q=80',
+        altText: 'FlipPhone X12 5G smartphone',
+        isPrimary: true,
+        sortOrder: 1
+      }
+    ],
+    videos: []
+  },
 
+  {
+    productId: 2,
+    images: [
+      {
+        url: 'https://images.unsplash.com/photo-1598327105666-5b89351aff97?auto=format&fit=crop&w=600&q=80',
+        altText: 'Nova Smartphone',
+        isPrimary: true,
+        sortOrder: 1
+      }
+    ],
+    videos: []
+  },
+
+  {
+    productId: 3,
+    images: [
+      {
+        url: 'https://images.unsplash.com/photo-1496181133206-80ce9b88a853?auto=format&fit=crop&w=600&q=80',
+        altText: 'UltraBook Pro 14 Laptop',
+        isPrimary: true,
+        sortOrder: 1
+      }
+    ],
+    videos: []
+  },
+
+  {
+    productId: 4,
+    images: [
+      {
+        url: 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?auto=format&fit=crop&w=600&q=80',
+        altText: 'SoundWave Headphones',
+        isPrimary: true,
+        sortOrder: 1
+      }
+    ],
+    videos: []
+  },
+
+  {
+    productId: 5,
+    images: [
+      {
+        url: 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?auto=format&fit=crop&w=600&q=80',
+        altText: 'SmartWatch Fit 2',
+        isPrimary: true,
+        sortOrder: 1
+      }
+    ],
+    videos: []
+  },
+
+  {
+    productId: 6,
+    images: [
+      {
+        url: 'https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?auto=format&fit=crop&w=600&q=80',
+        altText: "Men's Cotton Shirt",
+        isPrimary: true,
+        sortOrder: 1
+      }
+    ],
+    videos: []
+  },
+
+  {
+    productId: 7,
+    images: [
+      {
+        url: 'https://images.unsplash.com/photo-1583391733956-6c78276477e2?auto=format&fit=crop&w=600&q=80',
+        altText: "Women's Kurti",
+        isPrimary: true,
+        sortOrder: 1
+      }
+    ],
+    videos: []
+  },
+
+  {
+    productId: 8,
+    images: [
+      {
+        url: 'https://images.unsplash.com/photo-1542291026-7eec264c27ff?auto=format&fit=crop&w=600&q=80',
+        altText: 'Running Shoes',
+        isPrimary: true,
+        sortOrder: 1
+      }
+    ],
+    videos: []
+  },
+
+  {
+    productId: 9,
+    images: [
+      {
+        url: 'https://images.unsplash.com/photo-1551028719-00167b16c5e6?auto=format&fit=crop&w=600&q=80',
+        altText: 'Denim Jacket',
+        isPrimary: true,
+        sortOrder: 1
+      }
+    ],
+    videos: []
+  },
+
+  {
+    productId: 10,
+    images: [
+      {
+        url: 'https://images.unsplash.com/photo-1556911220-bff31c812dba?auto=format&fit=crop&w=600&q=80',
+        altText: 'Cookware Set',
+        isPrimary: true,
+        sortOrder: 1
+      }
+    ],
+    videos: []
+  },
+
+  {
+    productId: 11,
+    images: [
+      {
+        url: 'https://images.unsplash.com/photo-1594212699903-ec8a3eca50f5?auto=format&fit=crop&w=600&q=80',
+        altText: 'Electric Kettle',
+        isPrimary: true,
+        sortOrder: 1
+      }
+    ],
+    videos: []
+  },
+
+  {
+    productId: 12,
+    images: [
+      {
+        url: 'https://images.unsplash.com/photo-1507473885765-e6ed057f782c?auto=format&fit=crop&w=600&q=80',
+        altText: 'LED Table Lamp',
+        isPrimary: true,
+        sortOrder: 1
+      }
+    ],
+    videos: []
+  },
+
+  {
+    productId: 13,
+    images: [
+      {
+        url: 'https://images.unsplash.com/photo-1544947950-fa07a98d237f?auto=format&fit=crop&w=600&q=80',
+        altText: 'Data Structures Handbook',
+        isPrimary: true,
+        sortOrder: 1
+      }
+    ],
+    videos: []
+  },
+
+  {
+    productId: 14,
+    images: [
+      {
+        url: 'https://images.unsplash.com/photo-1567581935884-3349723552ca?auto=format&fit=crop&w=600&q=80',
+        altText: 'BudgetPhone Lite',
+        isPrimary: true,
+        sortOrder: 1
+      }
+    ],
+    videos: []
+  },
+
+  {
+    productId: 15,
+    images: [
+      {
+        url: 'https://images.unsplash.com/photo-1527814050087-3793815479db?auto=format&fit=crop&w=600&q=80',
+        altText: 'Wireless Mouse Combo',
+        isPrimary: true,
+        sortOrder: 1
+      }
+    ],
+    videos: []
+  }
+];
 const productSpecifications = [
   { productId: 1, categorySlug: 'mobiles', attributes: { RAM: '8GB', Storage: '128GB', Battery: '5000mAh', Camera: '64MP + 12MP + 8MP', OperatingSystem: 'Android 14', Display: '6.5" AMOLED', Network: '5G' } },
   { productId: 2, categorySlug: 'mobiles', attributes: { RAM: '6GB', Storage: '128GB', Battery: '5000mAh', Camera: '50MP + 8MP', OperatingSystem: 'Android 14', Display: '6.4" IPS LCD', Network: '4G' } },
