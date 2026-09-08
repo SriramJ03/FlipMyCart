@@ -123,8 +123,34 @@ export default function Analytics() {
   if (error) return <div className="dashboard-page"><h1>Data analysis</h1><div className="alert alert-danger">{error}</div></div>;
 
   const { sales, sellers, products, customers, inventory } = data;
-  const sellerData = sellers.rows.map((s) => ({ name: s.sellerId.slice(0, 8), revenue: Number(s.totalRevenue || 0), units: s.unitsSold }));
-  const productData = products.mostPurchased.map((p) => ({ name: p.productId.slice(0, 8), units: p.timesPurchased, revenue: Number(p.revenue || 0) }));
+  const sellerData = sellers.rows.map((s) => ({ name: s.sellerId.slice(0, 8), revenue: Number(s.totalRevenue || 0), units: s.unitsSold })); 
+ const productData = products.mostPurchased.map((p) => ({ name: p.productId.slice(0, 8), units: p.timesPurchased, revenue: Number(p.revenue || 0) }));
+ const viewedProductData = (products.mostViewed || []).map((p) => ({
+  name: p.name,
+  views: Number(p.views || 0),
+  uniqueUsers: Number(p.uniqueUsers || 0)
+}));
+
+const searchData = (customers.activity?.mostSearched || []).map((item) => ({
+  name: item.query,
+  searches: Number(item.searches || 0)
+}));
+
+const viewedCategoryData = (
+  customers.activity?.mostViewedCategories || []
+).map((item) => ({
+  name: item.name,
+  views: Number(item.views || 0)
+}));
+
+const activityData = (
+  customers.activity?.activityByType || []
+).map((item) => ({
+  name: item.activityType
+    .replace(/_/g, ' ')
+    .replace(/\b\w/g, (c) => c.toUpperCase()),
+  count: Number(item.count || 0)
+}));
 const categoryData = customers.topCategories.map((c) => ({
   name: categoryNames[c.category] || c.category,
   purchases: c.purchases
@@ -189,6 +215,41 @@ const salesCategoryData = sales.categorySales.slice(0, 8).map((c) => ({
             <div className="analytics-stat-card"><div className="stat-icon orange">!</div><div><p>Lowest Rating</p><h2>{products.lowestRated[0]?.avgRating || '-'}</h2><span>Product with lowest observed rating</span></div></div>
           </div>
           <div className="analytics-chart-card large-chart"><h2>Most purchased products</h2><p>Product IDs are shown because the Olist product file does not contain product names.</p><ResponsiveContainer width="100%" height={360}><BarChart data={productData}><CartesianGrid strokeDasharray="3 3" /><XAxis dataKey="name" /><YAxis /><Tooltip /><Legend /><Bar dataKey="units" name="Units purchased" fill="#243b5a" radius={[8, 8, 0, 0]} /></BarChart></ResponsiveContainer></div>
+          <div className="analytics-chart-card large-chart">
+  <h2>Most viewed products</h2>
+
+  <p>
+    Product views recorded from FlipMyCart MongoDB UserActivity.
+  </p>
+
+  <ResponsiveContainer width="100%" height={360}>
+    <BarChart
+      data={viewedProductData}
+      layout="vertical"
+    >
+      <CartesianGrid strokeDasharray="3 3" />
+
+      <XAxis type="number" />
+
+      <YAxis
+        type="category"
+        dataKey="name"
+        width={180}
+      />
+
+      <Tooltip />
+
+      <Legend />
+
+      <Bar
+        dataKey="views"
+        name="Views"
+        fill="#ff6b35"
+        radius={[0, 8, 8, 0]}
+      />
+    </BarChart>
+  </ResponsiveContainer>
+</div>
           <div className="analytics-table-card"><h2>Highest-rated products</h2><table><thead><tr><th>Product ID</th><th>Category</th><th>Average rating</th><th>Reviews</th></tr></thead><tbody>{products.highestRated.map((p) => <tr key={p.productId}><td>{p.productId}</td><td>{categoryNames[p.category] || p.category || '-'}</td><td>{p.avgRating} / 5</td><td>{p.reviewCount}</td></tr>)}</tbody></table></div>
         </div>
       )}
@@ -203,7 +264,99 @@ const salesCategoryData = sales.categorySales.slice(0, 8).map((c) => ({
           <div className="analytics-charts">
             <div className="analytics-chart-card large-chart"><h2>Preferred categories</h2><p>Customer purchase behaviour by category</p><ResponsiveContainer width="100%" height={340}><BarChart data={categoryData} layout="vertical"><CartesianGrid strokeDasharray="3 3" /><XAxis type="number" /><YAxis type="category" dataKey="name" width={130} /><Tooltip /><Legend /><Bar dataKey="purchases" name="Purchases" fill="#4caf50" radius={[0, 8, 8, 0]} /></BarChart></ResponsiveContainer></div>
             <div className="analytics-chart-card"><h2>Payment methods</h2><p>Transaction count by payment type</p><ResponsiveContainer width="100%" height={340}><PieChart><Pie data={paymentData} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={60} outerRadius={100}>{paymentData.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}</Pie><Tooltip /><Legend /></PieChart></ResponsiveContainer></div>
+                   </div>
+
+          {/* Search and category behaviour */}
+          <div className="analytics-charts">
+
+            <div className="analytics-chart-card large-chart">
+              <h2>Most searched products</h2>
+              <p>
+                Search queries recorded from FlipMyCart users.
+              </p>
+
+              <ResponsiveContainer width="100%" height={340}>
+                <BarChart
+                  data={searchData}
+                  layout="vertical"
+                >
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis type="number" />
+                  <YAxis
+                    type="category"
+                    dataKey="name"
+                    width={130}
+                  />
+                  <Tooltip />
+                  <Legend />
+                  <Bar
+                    dataKey="searches"
+                    name="Searches"
+                    fill="#243b5a"
+                    radius={[0, 8, 8, 0]}
+                  />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+
+            <div className="analytics-chart-card">
+              <h2>Most viewed categories</h2>
+              <p>
+                Category interactions recorded from FlipMyCart users.
+              </p>
+
+              <ResponsiveContainer width="100%" height={340}>
+                <BarChart data={viewedCategoryData}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis
+                    dataKey="name"
+                    angle={-30}
+                    textAnchor="end"
+                    height={80}
+                  />
+                  <YAxis />
+                  <Tooltip />
+                  <Legend />
+                  <Bar
+                    dataKey="views"
+                    name="Views"
+                    fill="#4caf50"
+                    radius={[8, 8, 0, 0]}
+                  />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+
           </div>
+
+          {/* Overall interaction patterns */}
+          <div className="analytics-chart-card full-chart">
+
+            <h2>User interaction patterns</h2>
+
+            <p>
+              Activity recorded by the FlipMyCart MongoDB UserActivity collection.
+            </p>
+
+            <ResponsiveContainer width="100%" height={340}>
+              <BarChart data={activityData}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="name" />
+                <YAxis />
+                <Tooltip />
+                <Legend />
+
+                <Bar
+                  dataKey="count"
+                  name="Interactions"
+                  fill="#9c6ade"
+                  radius={[8, 8, 0, 0]}
+                />
+              </BarChart>
+            </ResponsiveContainer>
+
+          </div>
+
         </div>
       )}
 

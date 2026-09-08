@@ -94,53 +94,414 @@ async function sellerPerformance() {
 }
 
 /* --------------------- 3. Product analysis (MongoDB / Olist) ---------------------- */
+async function mostViewedProducts() {
+  const rows = await UserActivity.aggregate([
+    {
+      $match: {
+        activityType: 'product_view',
+        productId: { $ne: null }
+      }
+    },
+    {
+      $group: {
+        _id: '$productId',
+        views: { $sum: 1 },
+        users: { $addToSet: '$userId' }
+      }
+    },
+    {
+      $sort: {
+        views: -1
+      }
+    },
+    {
+      $limit: 10
+    },
+    {
+      $project: {
+        _id: 0,
+        productId: '$_id',
+        views: 1,
+        uniqueUsers: {
+          $size: {
+            $filter: {
+              input: '$users',
+              as: 'user',
+              cond: { $ne: ['$$user', null] }
+            }
+          }
+        }
+      }
+    }
+  ]);
+
+  if (!rows.length) return [];
+
+  const productIds = rows.map((r) => r.productId);
+
+  const [products] = await pool.query(
+    `
+      SELECT
+        p.product_id AS productId,
+        p.name,
+        c.name AS category
+      FROM products p
+      LEFT JOIN categories c
+        ON c.category_id = p.category_id
+      WHERE p.product_id IN (?)
+    `,
+    [productIds]
+  );
+
+  const productMap = new Map(
+    products.map((p) => [Number(p.productId), p])
+  );
+
+  return rows.map((r) => ({
+    ...r,
+    name: productMap.get(Number(r.productId))?.name || `Product ${r.productId}`,
+    category: productMap.get(Number(r.productId))?.category || '-'
+  }));
+}
+
+
+async function activityAnalytics() {
+  // --------------------------------------------------
+  // Most searched products / keywords
+  // --------------------------------------------------
+  const mostSearched = await UserActivity.aggregate([
+    {
+      $match: {
+        activityType: 'product_search',
+        searchQuery: {
+          $exists: true,
+          $nin: [null, '']
+        }
+      }
+    },
+    {
+      $project: {
+        searchQuery: {
+          $toLower: {
+            $trim: {
+              input: '$searchQuery'
+            }
+          }
+        },
+        userId: 1
+      }
+    },
+    {
+      $match: {
+        searchQuery: {
+          $ne: ''
+        }
+      }
+    },
+    {
+      $group: {
+        _id: '$searchQuery',
+        searches: { $sum: 1 },
+        users: { $addToSet: '$userId' }
+      }
+    },
+    {
+      $sort: {
+        searches: -1
+      }
+    },
+    {
+      $limit: 10
+    },
+    {
+      $project: {
+        _id: 0,
+        query: '$_id',
+        searches: 1,
+        uniqueUsers: {
+          $size: {
+            $filter: {
+              input: '$users',
+              as: 'user',
+              cond: { $ne: ['$$user', null] }
+            }
+          }
+        }
+      }
+    }
+  ]);
+
+
+  // --------------------------------------------------
+  // Most viewed categories
+  // --------------------------------------------------
+  const mostViewedCategoriesRaw = await UserActivity.aggregate([
+    {
+      $match: {
+        activityType: 'category_view',
+        categoryId: { $ne: null }
+      }
+    },
+    {
+      $group: {
+        _id: '$categoryId',
+        views: { $sum: 1 },
+        users: { $addToSet: '$userId' }
+      }
+    },
+    {
+      $sort: {
+        views: -1
+      }
+    },
+    {
+      $limit: 10
+    },
+    {
+      $project: {
+        _id: 0,
+        categoryId: '$_id',
+        views: 1,
+        uniqueUsers: {
+          $size: {
+            $filter: {
+              input: '$users',
+              as: 'user',
+              cond: { $ne: ['$$user', null] }
+            }
+          }
+        }
+      }
+    }
+  ]);
+
+
+  // Get category names from MySQL
+  let mostViewedCategories = [];
+
+  if (mostViewedCategoriesRaw.length) {
+    const categoryIds = mostViewedCategoriesRaw.map(
+      (r) => r.categoryId
+    );
+
+    const [categories] = await pool.query(
+      `
+        SELECT
+          category_id AS categoryId,
+          name
+        FROM categories
+        WHERE category_id IN (?)
+      `,
+      [categoryIds]
+    );
+
+    const categoryMap = new Map(
+      categories.map((c) => [Number(c.categoryId), c.name])
+    );
+
+    mostViewedCategories = mostViewedCategoriesRaw.map((r) => ({
+      ...r,
+      name:
+        categoryMap.get(Number(r.categoryId)) ||
+        `Category ${r.categoryId}`
+    }));
+  }
+
+
+  // --------------------------------------------------
+  // Activity type summary
+  // --------------------------------------------------
+  const activityByType = await UserActivity.aggregate([
+    {
+      $group: {
+        _id: '$activityType',
+        count: { $sum: 1 },
+        users: { $addToSet: '$userId' }
+      }
+    },
+    {
+      $sort: {
+        count: -1
+      }
+    },
+    {
+      $project: {
+        _id: 0,
+        activityType: '$_id',
+        count: 1,
+        uniqueUsers: {
+          $size: {
+            $filter: {
+              input: '$users',
+              as: 'user',
+              cond: { $ne: ['$$user', null] }
+            }
+          }
+        }
+      }
+    }
+  ]);
+
+  const totalEvents = activityByType.reduce(
+    (sum, item) => sum + Number(item.count || 0),
+    0
+  );
+
+  return {
+    totalEvents,
+    mostSearched,
+    mostViewedCategories,
+    activityByType
+  };
+}
 async function productAnalysis() {
   const mostPurchased = await OlistOrder.aggregate([
     { $match: OLIST_SALE_MATCH },
     { $unwind: '$items' },
-    { $group: { _id: '$items.productId', timesPurchased: { $sum: 1 }, revenue: { $sum: '$items.price' }, category: { $first: '$items.productCategoryEnglish' } } },
+    {
+      $group: {
+        _id: '$items.productId',
+        timesPurchased: { $sum: 1 },
+        revenue: { $sum: '$items.price' },
+        category: { $first: '$items.productCategoryEnglish' }
+      }
+    },
     { $sort: { timesPurchased: -1, revenue: -1 } },
     { $limit: 10 },
-    { $project: { _id: 0, productId: '$_id', timesPurchased: 1, revenue: 1, category: 1 } },
+    {
+      $project: {
+        _id: 0,
+        productId: '$_id',
+        timesPurchased: 1,
+        revenue: 1,
+        category: 1
+      }
+    }
   ]);
+
 
   const ratings = await OlistReview.aggregate([
-    { $group: { _id: '$orderId', avgRating: { $avg: '$reviewScore' }, reviewCount: { $sum: 1 } } },
-    { $lookup: { from: 'olistorders', localField: '_id', foreignField: 'orderId', as: 'order' } },
+    {
+      $group: {
+        _id: '$orderId',
+        avgRating: { $avg: '$reviewScore' },
+        reviewCount: { $sum: 1 }
+      }
+    },
+    {
+      $lookup: {
+        from: 'olistorders',
+        localField: '_id',
+        foreignField: 'orderId',
+        as: 'order'
+      }
+    },
     { $unwind: '$order' },
-    { $match: { $expr: { $eq: [{ $size: '$order.items' }, 1] } } },
+    {
+      $match: {
+        $expr: {
+          $eq: [{ $size: '$order.items' }, 1]
+        }
+      }
+    },
     { $unwind: '$order.items' },
-    { $group: {
-      _id: '$order.items.productId',
-      avgRating: { $avg: '$avgRating' },
-      reviewCount: { $sum: '$reviewCount' },
-      category: { $first: '$order.items.productCategoryEnglish' },
-    } },
+    {
+      $group: {
+        _id: '$order.items.productId',
+        avgRating: { $avg: '$avgRating' },
+        reviewCount: { $sum: '$reviewCount' },
+        category: {
+          $first: '$order.items.productCategoryEnglish'
+        }
+      }
+    },
     { $sort: { avgRating: -1, reviewCount: -1 } },
     { $limit: 10 },
-    { $project: { _id: 0, productId: '$_id', avgRating: { $round: ['$avgRating', 2] }, reviewCount: 1, category: 1 } },
+    {
+      $project: {
+        _id: 0,
+        productId: '$_id',
+        avgRating: { $round: ['$avgRating', 2] },
+        reviewCount: 1,
+        category: 1
+      }
+    }
   ]);
+
 
   const lowestRated = await OlistReview.aggregate([
-    { $group: { _id: '$orderId', avgRating: { $avg: '$reviewScore' }, reviewCount: { $sum: 1 } } },
-    { $lookup: { from: 'olistorders', localField: '_id', foreignField: 'orderId', as: 'order' } },
+    {
+      $group: {
+        _id: '$orderId',
+        avgRating: { $avg: '$reviewScore' },
+        reviewCount: { $sum: 1 }
+      }
+    },
+    {
+      $lookup: {
+        from: 'olistorders',
+        localField: '_id',
+        foreignField: 'orderId',
+        as: 'order'
+      }
+    },
     { $unwind: '$order' },
-    { $match: { $expr: { $eq: [{ $size: '$order.items' }, 1] } } },
+    {
+      $match: {
+        $expr: {
+          $eq: [{ $size: '$order.items' }, 1]
+        }
+      }
+    },
     { $unwind: '$order.items' },
-    { $group: { _id: '$order.items.productId', avgRating: { $avg: '$avgRating' }, reviewCount: { $sum: '$reviewCount' }, category: { $first: '$order.items.productCategoryEnglish' } } },
+    {
+      $group: {
+        _id: '$order.items.productId',
+        avgRating: { $avg: '$avgRating' },
+        reviewCount: { $sum: '$reviewCount' },
+        category: {
+          $first: '$order.items.productCategoryEnglish'
+        }
+      }
+    },
     { $sort: { avgRating: 1, reviewCount: -1 } },
     { $limit: 10 },
-    { $project: { _id: 0, productId: '$_id', avgRating: { $round: ['$avgRating', 2] }, reviewCount: 1, category: 1 } },
+    {
+      $project: {
+        _id: 0,
+        productId: '$_id',
+        avgRating: { $round: ['$avgRating', 2] },
+        reviewCount: 1,
+        category: 1
+      }
+    }
   ]);
 
+
+  // NEW: FlipMyCart product views
+  const mostViewed = await mostViewedProducts();
+
   const totalProducts = await OlistProduct.countDocuments();
+
   return {
-    source: 'Olist Brazilian E-Commerce Public Dataset',
+    source:
+      'Olist Brazilian E-Commerce Public Dataset + FlipMyCart UserActivity',
+
     totalProducts,
-    mostPurchased: mostPurchased.map((r) => ({ ...r, revenue: Number(r.revenue) })),
+
+    mostPurchased: mostPurchased.map((r) => ({
+      ...r,
+      revenue: Number(r.revenue)
+    })),
+
+    mostViewed,
+
     highestRated: ratings,
+
     lowestRated,
-    note: 'Olist does not contain product browsing/view events or product names; productId and category are used for dataset-faithful analysis; product ratings are calculated only for single-item orders because Olist reviews are order-level.',
+
+    note:
+      'Purchase and rating analysis uses Olist. Product view analysis uses FlipMyCart MongoDB UserActivity.'
   };
 }
 
@@ -148,43 +509,120 @@ async function productAnalysis() {
 async function customerBehaviour() {
   const [summary] = await OlistOrder.aggregate([
     { $match: OLIST_SALE_MATCH },
-    { $group: { _id: '$customerUniqueId', orders: { $sum: 1 }, spent: { $sum: { $sum: '$items.price' } } } },
-    { $group: {
-      _id: null,
-      uniqueCustomers: { $sum: 1 },
-      repeatCustomers: { $sum: { $cond: [{ $gt: ['$orders', 1] }, 1, 0] } },
-      totalCustomerOrders: { $sum: '$orders' },
-      totalSpent: { $sum: '$spent' },
-    } },
+    {
+      $group: {
+        _id: '$customerUniqueId',
+        orders: { $sum: 1 },
+        spent: { $sum: { $sum: '$items.price' } }
+      }
+    },
+    {
+      $group: {
+        _id: null,
+        uniqueCustomers: { $sum: 1 },
+        repeatCustomers: {
+          $sum: {
+            $cond: [{ $gt: ['$orders', 1] }, 1, 0]
+          }
+        },
+        totalCustomerOrders: { $sum: '$orders' },
+        totalSpent: { $sum: '$spent' }
+      }
+    }
   ]);
+
 
   const topCategories = await OlistOrder.aggregate([
     { $match: OLIST_SALE_MATCH },
     { $unwind: '$items' },
-    { $group: { _id: '$items.productCategoryEnglish', purchases: { $sum: 1 }, revenue: { $sum: '$items.price' } } },
+    {
+      $group: {
+        _id: '$items.productCategoryEnglish',
+        purchases: { $sum: 1 },
+        revenue: { $sum: '$items.price' }
+      }
+    },
     { $sort: { purchases: -1 } },
     { $limit: 10 },
-    { $project: { _id: 0, category: '$_id', purchases: 1, revenue: 1 } },
+    {
+      $project: {
+        _id: 0,
+        category: '$_id',
+        purchases: 1,
+        revenue: 1
+      }
+    }
   ]);
+
 
   const paymentMethods = await OlistOrder.aggregate([
     { $match: OLIST_SALE_MATCH },
     { $unwind: '$payments' },
-    { $group: { _id: '$payments.type', transactions: { $sum: 1 }, value: { $sum: '$payments.value' } } },
+    {
+      $group: {
+        _id: '$payments.type',
+        transactions: { $sum: 1 },
+        value: { $sum: '$payments.value' }
+      }
+    },
     { $sort: { value: -1 } },
-    { $project: { _id: 0, method: '$_id', transactions: 1, value: 1 } },
+    {
+      $project: {
+        _id: 0,
+        method: '$_id',
+        transactions: 1,
+        value: 1
+      }
+    }
   ]);
 
+
+  // NEW: actual FlipMyCart user activity
+  const activity = await activityAnalytics();
+
   const uniqueCustomers = summary?.uniqueCustomers || 0;
+
   return {
-    source: 'Olist Brazilian E-Commerce Public Dataset',
+    source:
+      'Olist Brazilian E-Commerce Public Dataset + FlipMyCart UserActivity',
+
     totalCustomers: uniqueCustomers,
+
     returningCustomers: summary?.repeatCustomers || 0,
-    returningCustomerRate: uniqueCustomers ? Number(((summary.repeatCustomers / uniqueCustomers) * 100).toFixed(2)) : 0,
-    averageOrdersPerCustomer: uniqueCustomers ? Number((summary.totalCustomerOrders / uniqueCustomers).toFixed(2)) : 0,
-    topCategories: topCategories.map((r) => ({ ...r, revenue: Number(r.revenue) })),
-    paymentMethods: paymentMethods.map((r) => ({ ...r, value: Number(r.value) })),
-    note: 'Olist has purchase and review behaviour, but no browsing/search clickstream. The dashboard therefore does not fabricate views or searches.',
+
+    returningCustomerRate: uniqueCustomers
+      ? Number(
+          (
+            (summary.repeatCustomers / uniqueCustomers) *
+            100
+          ).toFixed(2)
+        )
+      : 0,
+
+    averageOrdersPerCustomer: uniqueCustomers
+      ? Number(
+          (
+            summary.totalCustomerOrders /
+            uniqueCustomers
+          ).toFixed(2)
+        )
+      : 0,
+
+    topCategories: topCategories.map((r) => ({
+      ...r,
+      revenue: Number(r.revenue)
+    })),
+
+    paymentMethods: paymentMethods.map((r) => ({
+      ...r,
+      value: Number(r.value)
+    })),
+
+    // NEW
+    activity,
+
+    note:
+      'Purchase behaviour uses Olist. Search, product-view and category-view behaviour uses FlipMyCart MongoDB UserActivity.'
   };
 }
 
